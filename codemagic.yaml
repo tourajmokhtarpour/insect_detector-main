@@ -5,36 +5,54 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Generate Android Platform Folder
+      - name: Generate Android Platform
         script: |
           set -e
-          echo "🔨 Generating Android platform files (CI/CD Safe Method)..."
+          echo "🔨 Step 1: Generating Android platform..."
           
-          # حذف پوشه قبلی اگر وجود دارد
-          rm -rf android
+          # نمایش وضعیت فعلی
+          echo "Current directory contents:"
+          ls -la
           
-          # ساخت یک پروژه موقت فقط برای استخراج پوشه android
-          flutter create --platforms=android temp_ci_project
+          # حذف پوشه android قبلی
+          if [ -d "android" ]; then
+            echo "⚠️ Removing existing android directory..."
+            rm -rf android
+          fi
           
-          # انتقال پوشه android به ریشه پروژه اصلی
-          mv temp_ci_project/android ./
+          # ساخت پروژه موقت
+          echo "📦 Creating temporary Flutter project..."
+          flutter create --platforms=android temp_project
+          
+          # بررسی موفقیت
+          if [ ! -d "temp_project/android" ]; then
+            echo "❌ ERROR: temp_project/android was not created!"
+            echo "Flutter create output:"
+            flutter create --platforms=android temp_project --verbose
+            exit 1
+          fi
+          
+          # انتقال پوشه android
+          echo " Moving android folder to project root..."
+          mv temp_project/android ./
           
           # حذف پروژه موقت
-          rm -rf temp_ci_project
+          rm -rf temp_project
           
-          # بررسی نهایی وجود پوشه
+          # بررسی نهایی
           if [ -d "android" ]; then
-            echo "✅ Android folder created successfully"
+            echo "✅ SUCCESS: Android folder created"
+            echo "Android folder contents:"
             ls -la android/
           else
-            echo "❌ CRITICAL: Android folder was not created"
+            echo "❌ CRITICAL: Android folder missing after move"
             exit 1
           fi
 
-      - name: Fix Gradle Configuration
+      - name: Configure Gradle
         script: |
           set -e
-          echo "🔧 Applying custom Gradle settings..."
+          echo "🔧 Step 2: Configuring Gradle..."
           
           rm -f android/build.gradle.kts android/app/build.gradle.kts android/settings.gradle.kts
           
@@ -125,26 +143,31 @@ workflows:
           }
           flutter { source '../..' }
           EOF
-          echo "✅ Gradle configuration applied successfully"
+          
+          echo "✅ Gradle configured"
 
-      - name: Copy AndroidManifest
+      - name: Copy Manifest
         script: |
           set -e
-          echo "📋 Copying AndroidManifest..."
-          cp custom_android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          echo "✅ Manifest copied"
+          echo "📋 Step 3: Copying AndroidManifest..."
+          if [ -f "custom_android/AndroidManifest.xml" ]; then
+            cp custom_android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+            echo "✅ Manifest copied"
+          else
+            echo "️ WARNING: custom_android/AndroidManifest.xml not found"
+          fi
 
       - name: Install Dependencies
         script: |
           set -e
-          echo "📦 Installing Flutter dependencies..."
+          echo "📦 Step 4: Installing dependencies..."
           flutter pub get
           echo "✅ Dependencies installed"
 
-      - name: Build Release APK
+      - name: Build APK
         script: |
           set -e
-          echo "🏗️ Building Release APK..."
+          echo "🏗️ Step 5: Building APK..."
           flutter build apk --release --android-skip-build-dependency-validation
           echo "✅ APK built successfully"
 
