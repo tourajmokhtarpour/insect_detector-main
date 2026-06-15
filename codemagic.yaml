@@ -4,32 +4,25 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+    pre_build_script: |
+      echo "🔨 Pre-build: Creating Android platform..."
+      rm -rf android temp_project
+      flutter create --platforms=android temp_project
+      mv temp_project/android ./
+      rm -rf temp_project
+      
+      if [ -d "android" ]; then
+        echo "✅ Android platform created in pre_build"
+      else
+        echo "❌ Failed to create Android platform"
+        exit 1
+      fi
     scripts:
-      - name: Complete Build Process
+      - name: Configure Gradle
         script: |
           set -e
+          echo " Configuring Gradle..."
           
-          echo "=========================================="
-          echo "🚀 Starting Complete Build Process"
-          echo "=========================================="
-          
-          # مرحله ۱: ساخت پوشه android
-          echo ""
-          echo "📦 Step 1: Creating Android platform..."
-          rm -rf android temp_project
-          flutter create --platforms=android temp_project
-          mv temp_project/android ./
-          rm -rf temp_project
-          
-          if [ ! -d "android" ]; then
-            echo "❌ FATAL: android directory not created"
-            exit 1
-          fi
-          echo "✅ Android platform created"
-          
-          # مرحله ۲: تنظیم Gradle
-          echo ""
-          echo " Step 2: Configuring Gradle..."
           rm -f android/build.gradle.kts android/app/build.gradle.kts android/settings.gradle.kts
           
           mkdir -p android/gradle/wrapper
@@ -120,33 +113,24 @@ workflows:
           flutter { source '../..' }
           EOF
           echo "✅ Gradle configured"
-          
-          # مرحله ۳: کپی AndroidManifest
-          echo ""
-          echo "📋 Step 3: Copying AndroidManifest..."
+
+      - name: Copy Manifest
+        script: |
+          set -e
+          echo " Copying AndroidManifest..."
           if [ -f "custom_android/AndroidManifest.xml" ]; then
             cp custom_android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
             echo "✅ Manifest copied"
           else
             echo "⚠️ WARNING: custom_android/AndroidManifest.xml not found"
           fi
-          
-          # مرحله ۴: نصب dependencies
-          echo ""
-          echo "📦 Step 4: Installing dependencies..."
-          flutter pub get
-          echo "✅ Dependencies installed"
-          
-          # مرحله ۵: ساخت APK
-          echo ""
-          echo "️ Step 5: Building APK..."
+
+      - name: Build APK
+        script: |
+          set -e
+          echo "🏗️ Building APK..."
           flutter build apk --release --android-skip-build-dependency-validation
           echo "✅ APK built successfully"
-          
-          echo ""
-          echo "=========================================="
-          echo "🎉 Build completed successfully!"
-          echo "=========================================="
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
