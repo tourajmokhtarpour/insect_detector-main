@@ -5,55 +5,31 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Generate Android Platform
+      - name: Complete Build Process
         script: |
           set -e
-          echo "🔨 Step 1: Generating Android platform..."
           
-          # نمایش وضعیت فعلی
-          echo "Current directory contents:"
-          ls -la
+          echo "=========================================="
+          echo "🚀 Starting Complete Build Process"
+          echo "=========================================="
           
-          # حذف پوشه android قبلی
-          if [ -d "android" ]; then
-            echo "⚠️ Removing existing android directory..."
-            rm -rf android
-          fi
-          
-          # ساخت پروژه موقت
-          echo "📦 Creating temporary Flutter project..."
+          # مرحله ۱: ساخت پوشه android
+          echo ""
+          echo "📦 Step 1: Creating Android platform..."
+          rm -rf android temp_project
           flutter create --platforms=android temp_project
-          
-          # بررسی موفقیت
-          if [ ! -d "temp_project/android" ]; then
-            echo "❌ ERROR: temp_project/android was not created!"
-            echo "Flutter create output:"
-            flutter create --platforms=android temp_project --verbose
-            exit 1
-          fi
-          
-          # انتقال پوشه android
-          echo " Moving android folder to project root..."
           mv temp_project/android ./
-          
-          # حذف پروژه موقت
           rm -rf temp_project
           
-          # بررسی نهایی
-          if [ -d "android" ]; then
-            echo "✅ SUCCESS: Android folder created"
-            echo "Android folder contents:"
-            ls -la android/
-          else
-            echo "❌ CRITICAL: Android folder missing after move"
+          if [ ! -d "android" ]; then
+            echo "❌ FATAL: android directory not created"
             exit 1
           fi
-
-      - name: Configure Gradle
-        script: |
-          set -e
-          echo "🔧 Step 2: Configuring Gradle..."
+          echo "✅ Android platform created"
           
+          # مرحله ۲: تنظیم Gradle
+          echo ""
+          echo " Step 2: Configuring Gradle..."
           rm -f android/build.gradle.kts android/app/build.gradle.kts android/settings.gradle.kts
           
           mkdir -p android/gradle/wrapper
@@ -143,33 +119,34 @@ workflows:
           }
           flutter { source '../..' }
           EOF
-          
           echo "✅ Gradle configured"
-
-      - name: Copy Manifest
-        script: |
-          set -e
+          
+          # مرحله ۳: کپی AndroidManifest
+          echo ""
           echo "📋 Step 3: Copying AndroidManifest..."
           if [ -f "custom_android/AndroidManifest.xml" ]; then
             cp custom_android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
             echo "✅ Manifest copied"
           else
-            echo "️ WARNING: custom_android/AndroidManifest.xml not found"
+            echo "⚠️ WARNING: custom_android/AndroidManifest.xml not found"
           fi
-
-      - name: Install Dependencies
-        script: |
-          set -e
+          
+          # مرحله ۴: نصب dependencies
+          echo ""
           echo "📦 Step 4: Installing dependencies..."
           flutter pub get
           echo "✅ Dependencies installed"
-
-      - name: Build APK
-        script: |
-          set -e
-          echo "🏗️ Step 5: Building APK..."
+          
+          # مرحله ۵: ساخت APK
+          echo ""
+          echo "️ Step 5: Building APK..."
           flutter build apk --release --android-skip-build-dependency-validation
           echo "✅ APK built successfully"
+          
+          echo ""
+          echo "=========================================="
+          echo "🎉 Build completed successfully!"
+          echo "=========================================="
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
